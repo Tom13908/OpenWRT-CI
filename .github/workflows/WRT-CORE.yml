@@ -152,6 +152,9 @@ jobs:
         run: |
           cd ./wrt/
 
+          # 加入 iStore 应用商店 feed（编译期集成）
+          echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
