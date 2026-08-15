@@ -177,6 +177,16 @@ CONFIG_PACKAGE_kmod-regmap-core=y
 CONFIG_PACKAGE_kmod-scsi-core=y
 CONFIG_PACKAGE_kmod-sound-core=y
 
+#===== 防火墙用户态（iptables-nft 全家，UA3F 等插件依赖）=====
+CONFIG_PACKAGE_iptables-nft=y
+CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+CONFIG_PACKAGE_iptables-mod-extra=y
+CONFIG_PACKAGE_iptables-mod-ipopt=y
+CONFIG_PACKAGE_iptables-mod-nfqueue=y
+CONFIG_PACKAGE_iptables-mod-tproxy=y
+CONFIG_PACKAGE_xtables-nft=y
+CONFIG_PACKAGE_libxtables12=y
+
 #===== 磁盘/网络工具（用户态，小体积，避免事后补装）=====
 CONFIG_PACKAGE_ipset=y
 CONFIG_PACKAGE_libipset13=y
