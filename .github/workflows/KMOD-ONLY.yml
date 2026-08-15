@@ -1,8 +1,6 @@
-# SPDX-License-Identifier: MIT
-# 一次性任务：仅为已刷入的固件（源码 commit 1f96307, 内核 6.18.41）
-# 编译 3 个缺失的 kmod（ipset / nft-compat / conntrack-extra），
-# 产出 .apk 供直接 apk add 安装，无需重刷固件。
-# 触发方式：手动 workflow_dispatch
+# One-shot job: build 3 missing kmods for installed firmware (commit 1f96307, kernel 6.18.41)
+# Output .apk files for direct apk add - no reflash needed.
+# Trigger: manual workflow_dispatch
 
 name: KMOD-ONLY
 
@@ -73,7 +71,6 @@ CFG
           cd /mnt/build_wrt/immortalwrt
           mkdir -p upload
           find bin/targets/ \( -name "kmod-ipt-ipset*.apk" -o -name "kmod-nft-compat*.apk" -o -name "kmod-ipt-conntrack-extra*.apk" \) -exec cp {} upload/ \;
-          echo "=== collected ==="
           ls -la upload/
 
       - name: Release kmods
@@ -83,5 +80,4 @@ CFG
           files: /mnt/build_wrt/immortalwrt/upload/*.apk
           body: |
             kmod-ipt-ipset / kmod-nft-compat / kmod-ipt-conntrack-extra
-            源码 commit: ${{ env.PINNED_COMMIT }}（与已刷固件 r0-1f96307 同源，内核 6.18.41 匹配）
-            用途：apk add --allow-untrusted 安装后即可装 UA3F
+            Source commit: ${{ env.PINNED_COMMIT }} (same as installed firmware r0-1f96307, kernel 6.18.41)
