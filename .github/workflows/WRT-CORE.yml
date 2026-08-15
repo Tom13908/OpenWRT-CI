@@ -108,14 +108,9 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-          # 为 ZRAM 启用 zstd/lz4 压缩算法（内核 config 追加，避免缺算法）
-          # 最终算法集: lzo(默认自带) + lz4 + zstd
-          KCFG="./target/linux/qualcommax/config-6.18"
-          if [ -f "$KCFG" ]; then
-            grep -q "CONFIG_CRYPTO_ZSTD=y" "$KCFG" || echo "CONFIG_CRYPTO_ZSTD=y" >> "$KCFG"
-            grep -q "CONFIG_CRYPTO_LZ4=y" "$KCFG" || echo "CONFIG_CRYPTO_LZ4=y" >> "$KCFG"
-            echo "zstd/lz4 kernel config appended"
-          fi
+          # 注意: ZRAM 压缩算法后端不走内核 CONFIG_CRYPTO_*，
+          # 正确机制是 Config/GENERAL.txt 里的 CONFIG_KERNEL_ZRAM_BACKEND_*
+          # (编译进 zram.ko 与固件内核同源)
 
       - name: Check Scripts
         run: |
