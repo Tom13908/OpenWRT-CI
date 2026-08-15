@@ -44,7 +44,7 @@ jobs:
       - name: Write Config
         run: |
           cd /mnt/build_wrt/immortalwrt
-          cat $GITHUB_WORKSPACE/Config/KMODS.txt >> .config
+          cat $GITHUB_WORKSPACE/Config/KMODS-ZRAM.txt >> .config
           make defconfig
 
       - name: Download Packages
@@ -61,7 +61,7 @@ jobs:
         run: |
           cd /mnt/build_wrt/immortalwrt
           mkdir -p upload
-          find bin/targets/ \( -name "kmod-ipt-ipset*.apk" -o -name "kmod-nft-compat*.apk" -o -name "kmod-ipt-conntrack-extra*.apk" \) -exec cp {} upload/ \;
+          find bin/targets/ \( -name "kmod-zram*.apk" -o -name "kmod-lib-lz4*.apk" -o -name "kmod-lib-zstd*.apk" -o -name "kmod-lib-lzo*.apk" \) -exec cp {} upload/ \;
           ls -la upload/
 
       - name: Release kmods
