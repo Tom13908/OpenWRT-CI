@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: MIT
+# 一次性任务：仅为已刷入的固件（源码 commit 1f96307, 内核 6.18.41）
+# 编译 3 个缺失的 kmod（ipset / nft-compat / conntrack-extra），
+# 产出 .apk 供直接 apk add 安装，无需重刷固件。
+# 触发方式：手动 workflow_dispatch
+
+name: KMOD-ONLY
+
+on:
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  kmods:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Projects
+        uses: actions/checkout@main
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt -yqq update
+          sudo -E apt -yqq install dos2unix libfuse-dev
+          sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo mkdir -p /mnt/build_wrt
+          sudo chown $USER:$USER /mnt/build_wrt
+
+      - name: Clone Pinned Source (1f96307)
+        run: |
+          cd /mnt/build_wrt
+          git clone https://github.com/VIKINGYFY/immortalwrt.git
+          cd immortalwrt
+          git fetch --depth=1 origin 1f96307
+          git checkout FETCH_HEAD
+          echo "PINNED_COMMIT=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
+          sed -i '/.cn\//d; /tencent/d; /aliyun/d' ./scripts/projectsmirrors.json 2>/dev/null || true
+
+      - name: Update Feeds
+        run: |
+          cd /mnt/build_wrt/immortalwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Write Config (3 kmods only)
+        run: |
+          cd /mnt/build_wrt/immortalwrt
+          cat > .config <<'CFG'
+CONFIG_TARGET_qualcommax=y
+CONFIG_TARGET_qualcommax_ipq60xx=y
+CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_cmiot_ax18=y
+CONFIG_TARGET_ROOTFS_INITRAMFS=n
+CONFIG_PACKAGE_kmod-ipt-ipset=y
+CONFIG_PACKAGE_kmod-nft-compat=y
+CONFIG_PACKAGE_kmod-ipt-conntrack-extra=y
+CFG
+          make defconfig
+
+      - name: Download Packages
+        run: |
+          cd /mnt/build_wrt/immortalwrt
+          make download -j$(nproc)
+
+      - name: Compile
+        run: |
+          cd /mnt/build_wrt/immortalwrt
+          make -j$(nproc) 2>&1 | tail -60
+
+      - name: Collect kmod apk files
+        run: |
+          cd /mnt/build_wrt/immortalwrt
+          mkdir -p upload
+          find bin/targets/ \( -name "kmod-ipt-ipset*.apk" -o -name "kmod-nft-compat*.apk" -o -name "kmod-ipt-conntrack-extra*.apk" \) -exec cp {} upload/ \;
+          echo "=== collected ==="
+          ls -la upload/
+
+      - name: Release kmods
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: KMOD-${{ env.PINNED_COMMIT }}-${{ github.run_number }}
+          files: /mnt/build_wrt/immortalwrt/upload/*.apk
+          body: |
+            kmod-ipt-ipset / kmod-nft-compat / kmod-ipt-conntrack-extra
+            源码 commit: ${{ env.PINNED_COMMIT }}（与已刷固件 r0-1f96307 同源，内核 6.18.41 匹配）
+            用途：apk add --allow-untrusted 安装后即可装 UA3F
