@@ -30,7 +30,7 @@ jobs:
           cd /mnt/build_wrt
           git clone https://github.com/VIKINGYFY/immortalwrt.git
           cd immortalwrt
-          git fetch --depth=1 origin 1f96307
+          git fetch --depth=1 origin 1f9630750776197cda1269bf10a12fcdf16b7d42
           git checkout FETCH_HEAD
           echo "PINNED_COMMIT=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
           sed -i '/.cn\//d; /tencent/d; /aliyun/d' ./scripts/projectsmirrors.json 2>/dev/null || true
