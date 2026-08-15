@@ -108,6 +108,13 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
+          # 为 ZRAM 启用 zstd 压缩算法（内核 config 追加，避免缺算法）
+          KCFG="./target/linux/qualcommax/config-6.18"
+          if [ -f "$KCFG" ] && ! grep -q "CONFIG_CRYPTO_ZSTD=y" "$KCFG"; then
+            echo "CONFIG_CRYPTO_ZSTD=y" >> "$KCFG"
+            echo "zstd kernel config appended"
+          fi
+
       - name: Check Scripts
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
