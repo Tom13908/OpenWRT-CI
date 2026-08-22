@@ -239,11 +239,7 @@ jobs:
           tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{env.WRT_BRANCH}}-${{env.WRT_DATE}}
           files: ./wrt/upload/*.*
           body: |
-            这是个平台固件包，内含多个设备！
-            请注意选择你需要的设备固件！
-            不要问，刷就完事了！
-
-            全系带开源硬件加速，别问了！
+            个人定制云编译固件，仅针对 Cmiot AX18（详细说明见仓库 README）
 
             源码：${{env.WRT_REPO}}
             分支：${{env.WRT_BRANCH}}
@@ -255,8 +251,7 @@ jobs:
             登录地址：${{env.WRT_IP}}
             登录密码：${{env.WRT_PW}}
 
-            WIFI名称：${{env.WRT_SSID}}
-            WIFI密码：${{env.WRT_WORD}}
+            WIFI：无（WIFI-NO 配置，无线驱动未编入固件）
 
             内核版本：${{env.WRT_KVER}}
             插件列表：${{env.WRT_LIST}}
