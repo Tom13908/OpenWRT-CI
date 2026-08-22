@@ -21,7 +21,7 @@
 
 ## 使用
 
-- 登录地址：`10.3.2.1`（默认无密码，刷入后请立即设置）
+- 登录地址：`10.3.2.1`（默认用户名root，密码password）
 - 刷机文件见 [Releases](../../releases)：
   - `*factory*.ubi`：从原厂固件首次刷入
   - `*sysupgrade*.bin`：OpenWrt 系统内升级
