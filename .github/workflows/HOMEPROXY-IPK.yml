@@ -124,13 +124,14 @@ jobs:
 
           make download -j$(nproc)
 
-      - name: Prepare Kernel (for kmod dependencies)
+      - name: Compile Kernel (for kmod dependencies)
         run: |
           cd ./wrt/
 
-          #luci-app-homeproxy 依赖链会触发 kmod 编译(如 gpio-button-hotplug),
-          #需要先准备内核 .config 和工具链,否则报 "No rule to make target linux-*/.config"
-          make target/linux/prepare -j$(nproc) V=s || make target/linux/prepare -j1 V=s
+          #编译 luci-app-homeproxy / sing-box 会触发 kmod 包编译(如 gpio-button-hotplug、
+          #kmod-nft-tproxy),这些需要完整编译的内核树(含 .config、模块符号表)。
+          #target/linux/prepare 只解压+打补丁,不生成 .config,必须完整编译内核。
+          make target/linux/compile -j$(nproc) V=s || make target/linux/compile -j1 V=s
 
       - name: Compile HomeProxy Packages
         run: |
