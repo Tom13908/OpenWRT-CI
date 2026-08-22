@@ -100,14 +100,13 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Fetch HomeProxy Packages
+      - name: Verify Packages in Feeds
         run: |
-          cd ./wrt/package/
+          cd ./wrt/
 
-          #从 VIKINGYFY/packages 拉取 sing-box + luci-app-homeproxy 源码
-          #(与 Scripts/Packages.sh 中预置但默认注释的 "viking" 条目一致)
-          rm -rf ./packages/
-          git clone --depth=1 --single-branch --branch main https://github.com/VIKINGYFY/packages.git ./packages/
+          echo "=== 确认 feeds 中包存在 ==="
+          ls -d feeds/packages/net/sing-box 2>/dev/null || echo "WARN: feeds 中无 sing-box"
+          ls -d feeds/luci/applications/luci-app-homeproxy 2>/dev/null || echo "WARN: feeds 中无 luci-app-homeproxy"
 
       - name: Custom Settings
         run: |
@@ -129,24 +128,17 @@ jobs:
         run: |
           cd ./wrt/
 
-          SING_BOX_DIR=$(find ./package -maxdepth 5 -type d -iname 'sing-box' | head -n 1)
-          HOMEPROXY_DIR=$(find ./package -maxdepth 5 -type d -iname 'luci-app-homeproxy' | head -n 1)
-
-          echo "sing-box package dir: ${SING_BOX_DIR:-not found}"
-          echo "luci-app-homeproxy package dir: ${HOMEPROXY_DIR:-not found}"
-
-          [ -n "$SING_BOX_DIR" ] || { echo "sing-box package not found after clone!"; exit 1; }
-          [ -n "$HOMEPROXY_DIR" ] || { echo "luci-app-homeproxy package not found after clone!"; exit 1; }
-
-          make "${SING_BOX_DIR#./}/compile" -j$(nproc) V=s || make "${SING_BOX_DIR#./}/compile" -j1 V=s
-          make "${HOMEPROXY_DIR#./}/compile" -j$(nproc) V=s || make "${HOMEPROXY_DIR#./}/compile" -j1 V=s
+          #feeds 中的包用 package/feeds/<feed>/<pkg> 路径编译
+          make package/feeds/luci/luci-app-homeproxy/compile -j$(nproc) V=s || make package/feeds/luci/luci-app-homeproxy/compile -j1 V=s
+          make package/feeds/packages/sing-box/compile -j$(nproc) V=s || make package/feeds/packages/sing-box/compile -j1 V=s
 
       - name: Collect ipk Artifacts
         run: |
           cd ./wrt/ && mkdir -p ./upload/
 
           find ./bin/packages/ -type f \( -iname '*sing-box*.ipk' -o -iname '*sing-box*.apk' \
-            -o -iname '*luci-app-homeproxy*.ipk' -o -iname '*luci-app-homeproxy*.apk' \) \
+            -o -iname '*luci-app-homeproxy*.ipk' -o -iname '*luci-app-homeproxy*.apk' \
+            -o -iname '*homeproxy*.ipk' -o -iname '*homeproxy*.apk' \) \
             -exec cp -f {} ./upload/ \;
 
           ls -la ./upload/
