@@ -124,13 +124,21 @@ jobs:
 
           make download -j$(nproc)
 
+      - name: Prepare Kernel (for kmod dependencies)
+        run: |
+          cd ./wrt/
+
+          #luci-app-homeproxy 依赖链会触发 kmod 编译(如 gpio-button-hotplug),
+          #需要先准备内核 .config 和工具链,否则报 "No rule to make target linux-*/.config"
+          make target/linux/prepare -j$(nproc) V=s || make target/linux/prepare -j1 V=s
+
       - name: Compile HomeProxy Packages
         run: |
           cd ./wrt/
 
-          #feeds 中的包用 package/feeds/<feed>/<pkg> 路径编译
-          make package/feeds/luci/luci-app-homeproxy/compile -j$(nproc) V=s || make package/feeds/luci/luci-app-homeproxy/compile -j1 V=s
+          #先编纯用户态 sing-box(不依赖内核),再编 luci-app-homeproxy(会连带 kmod)
           make package/feeds/packages/sing-box/compile -j$(nproc) V=s || make package/feeds/packages/sing-box/compile -j1 V=s
+          make package/feeds/luci/luci-app-homeproxy/compile -j$(nproc) V=s || make package/feeds/luci/luci-app-homeproxy/compile -j1 V=s
 
       - name: Collect ipk Artifacts
         run: |
