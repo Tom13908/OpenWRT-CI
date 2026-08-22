@@ -7,6 +7,13 @@
 name: HOMEPROXY-IPK
 
 on:
+  #workflow_dispatch 需要文件先存在于默认分支才能触发,当前仍在测试分支上，
+  #故临时加入 push 触发以便在本分支上试跑；验证通过合并到 main 后可移除。
+  push:
+    branches:
+      - 'ci/homeproxy-ipk'
+    paths:
+      - '.github/workflows/HOMEPROXY-IPK.yml'
   workflow_dispatch:
     inputs:
       CONFIG:
@@ -29,10 +36,10 @@ permissions: write-all
 
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-  WRT_CONFIG: ${{inputs.CONFIG}}
-  WRT_REPO: https://github.com/${{inputs.SOURCE}}.git
-  WRT_BRANCH: ${{inputs.BRANCH}}
-  WRT_SOURCE: ${{inputs.SOURCE}}
+  WRT_CONFIG: ${{inputs.CONFIG || 'CMIOT-AX18-WIFI-NO'}}
+  WRT_REPO: https://github.com/${{inputs.SOURCE || 'VIKINGYFY/immortalwrt'}}.git
+  WRT_BRANCH: ${{inputs.BRANCH || 'main'}}
+  WRT_SOURCE: ${{inputs.SOURCE || 'VIKINGYFY/immortalwrt'}}
 
 jobs:
   build:
