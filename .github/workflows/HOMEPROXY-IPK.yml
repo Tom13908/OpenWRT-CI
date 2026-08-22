@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: MIT
+# Copyright (C) 2026 Tom13908
+
+#单独编译 HomeProxy(sing-box + luci-app-homeproxy)相关 ipk 包
+#不生成固件镜像,不影响 QCA-ALL 等现有全量编译流程
+
+name: HOMEPROXY-IPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      CONFIG:
+        description: '编译配置(对应 Config/ 目录下的文件名)'
+        default: 'CMIOT-AX18-WIFI-NO'
+        required: false
+        type: string
+      SOURCE:
+        description: '源码仓库'
+        default: 'VIKINGYFY/immortalwrt'
+        required: false
+        type: string
+      BRANCH:
+        description: '源码分支'
+        default: 'main'
+        required: false
+        type: string
+
+permissions: write-all
+
+env:
+  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  WRT_CONFIG: ${{inputs.CONFIG}}
+  WRT_REPO: https://github.com/${{inputs.SOURCE}}.git
+  WRT_BRANCH: ${{inputs.BRANCH}}
+  WRT_SOURCE: ${{inputs.SOURCE}}
+
+jobs:
+  build:
+    name: ${{inputs.CONFIG}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Projects
+        uses: actions/checkout@main
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt -yqq purge firefox
+          sudo -E apt -yqq update
+          sudo -E apt -yqq full-upgrade
+          sudo -E apt -yqq autoremove --purge
+          sudo -E apt -yqq autoclean
+          sudo -E apt -yqq clean
+          sudo -E apt -yqq install dos2unix libfuse-dev
+          sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo -E systemctl daemon-reload
+          sudo -E timedatectl set-timezone "Asia/Shanghai"
+
+          sudo mkdir -p /mnt/build_wrt
+          sudo chown $USER:$USER /mnt/build_wrt
+          sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
+
+      - name: Initialization Values
+        run: |
+          echo "WRT_INFO=${WRT_SOURCE%%/*}" >> $GITHUB_ENV
+
+      - name: Clone Code
+        run: |
+          git clone --depth=1 --single-branch --branch $WRT_BRANCH $WRT_REPO ./wrt/
+
+          cd ./wrt/ && echo "WRT_HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
+
+          PROJECT_MIRRORS_FILE="./scripts/projectsmirrors.json"
+          if [ -f "$PROJECT_MIRRORS_FILE" ]; then
+            sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
+          fi
+
+      - name: Check Caches
+        id: check-cache
+        uses: actions/cache@main
+        with:
+          key: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{env.WRT_HASH}}
+          restore-keys: ${{env.WRT_CONFIG}}-${{env.WRT_INFO}}
+          path: |
+            ./wrt/.ccache
+            ./wrt/staging_dir/host*
+            ./wrt/staging_dir/tool*
+
+      - name: Update Feeds
+        run: |
+          cd ./wrt/
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Fetch HomeProxy Packages
+        run: |
+          cd ./wrt/package/
+
+          #从 VIKINGYFY/packages 拉取 sing-box + luci-app-homeproxy 源码
+          #(与 Scripts/Packages.sh 中预置但默认注释的 "viking" 条目一致)
+          rm -rf ./packages/
+          git clone --depth=1 --single-branch --branch main https://github.com/VIKINGYFY/packages.git ./packages/
+
+      - name: Custom Settings
+        run: |
+          cd ./wrt/
+
+          cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
+          echo "CONFIG_PACKAGE_luci-app-homeproxy=y" >> .config
+          echo "CONFIG_PACKAGE_sing-box=y" >> .config
+
+          make defconfig -j$(nproc)
+
+      - name: Download Packages
+        run: |
+          cd ./wrt/
+
+          make download -j$(nproc)
+
+      - name: Compile HomeProxy Packages
+        run: |
+          cd ./wrt/
+
+          SING_BOX_DIR=$(find ./package -maxdepth 5 -type d -iname 'sing-box' | head -n 1)
+          HOMEPROXY_DIR=$(find ./package -maxdepth 5 -type d -iname 'luci-app-homeproxy' | head -n 1)
+
+          echo "sing-box package dir: ${SING_BOX_DIR:-not found}"
+          echo "luci-app-homeproxy package dir: ${HOMEPROXY_DIR:-not found}"
+
+          [ -n "$SING_BOX_DIR" ] || { echo "sing-box package not found after clone!"; exit 1; }
+          [ -n "$HOMEPROXY_DIR" ] || { echo "luci-app-homeproxy package not found after clone!"; exit 1; }
+
+          make "${SING_BOX_DIR#./}/compile" -j$(nproc) V=s || make "${SING_BOX_DIR#./}/compile" -j1 V=s
+          make "${HOMEPROXY_DIR#./}/compile" -j$(nproc) V=s || make "${HOMEPROXY_DIR#./}/compile" -j1 V=s
+
+      - name: Collect ipk Artifacts
+        run: |
+          cd ./wrt/ && mkdir -p ./upload/
+
+          find ./bin/packages/ -type f \( -iname '*sing-box*.ipk' -o -iname '*sing-box*.apk' \
+            -o -iname '*luci-app-homeproxy*.ipk' -o -iname '*luci-app-homeproxy*.apk' \) \
+            -exec cp -f {} ./upload/ \;
+
+          ls -la ./upload/
+
+      - name: Upload ipk Artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: homeproxy-ipk-${{env.WRT_CONFIG}}-${{env.WRT_HASH}}
+          path: ./wrt/upload/*.*
